@@ -1,4 +1,5 @@
-from pydantic_settings import BaseSettings, Field, validator
+from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
@@ -33,6 +34,16 @@ class Settings(BaseSettings):
     PROXY_KEY: str
     USERBOX_KEY: str
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def _split_cors_origins(cls, v):
+        """
+        Если из env пришла строка, разбиваем по запятым.
+        Если список — возвращаем как есть.
+        """
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
 
     @property
     def DATABASE_URL(self):
