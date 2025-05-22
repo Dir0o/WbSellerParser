@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column, Integer, String, DateTime, func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
-from backend.database import Base
+from database import Base
 
 
 class SellerContactCache(Base):

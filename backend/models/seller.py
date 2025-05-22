@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, func
-from backend.database import Base
+from database import Base
 from sqlalchemy.dialects.postgresql import ARRAY
 
 

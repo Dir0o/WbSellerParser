@@ -8,7 +8,7 @@ from sqlalchemy import (
     func,
     UniqueConstraint,
 )
-from backend.database import Base
+from database import Base
 
 
 class CollectionLog(Base):
