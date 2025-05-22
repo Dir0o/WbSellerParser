@@ -3,6 +3,7 @@ from pydantic import Field, field_validator
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
+from typing import Union, List
 
 load_dotenv()
 
@@ -30,7 +31,16 @@ class Settings(BaseSettings):
     CACHE_TTL: timedelta = timedelta(minutes=10)
     PROXY_KEY: str
     USERBOX_KEY: str
-    CORS_ORIGINS: str
+
+    CORS_ORIGINS: Union[List[str], str] = Field(default="")
+
+    @field_validator("CORS_ORIGINS", mode="after")
+    @classmethod
+    def _normalise_cors(cls, v: Union[List[str], str]) -> List[str]:
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin]
+        return list(v)
+
     @property
     def DATABASE_URL(self):
         return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
