@@ -1,5 +1,6 @@
 import logging, time
 from datetime import datetime
+import os
 from fastapi import Request, FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 from uvicorn.logging import AccessFormatter
@@ -41,9 +42,12 @@ def register_middleware(app: FastAPI):
             return JSONResponse(content=payload, status_code=response.status_code, headers=headers)
         return response
 
+    raw = os.getenv("CORS_ORIGINS", "")
+    allow_origins = [u.strip() for u in raw.split(",") if u.strip()]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

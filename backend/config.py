@@ -22,28 +22,12 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_NAME: str
     DB_PASS: str
-
-    CORS_ORIGINS: list[str] = Field(
-        default_factory=list,
-        env="CORS_ORIGINS"
-    )
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     CACHE_TTL: timedelta = timedelta(minutes=10)
     PROXY_KEY: str
     USERBOX_KEY: str
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def _split_cors_origins(cls, v):
-        """
-        Если из env пришла строка, разбиваем по запятым.
-        Если список — возвращаем как есть.
-        """
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return v
 
     @property
     def DATABASE_URL(self):
