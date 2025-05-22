@@ -15,6 +15,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 ALGORITHM = os.environ.get("ALGORITHM")
 PROXY_KEY = os.environ.get("PROXY_KEY")
 USERBOX_KEY = os.environ.get("USERBOX_KEY")
+CORS_ORIGINS = [x for x in os.environ.get("CORS_ORIGINS").split(',')]
+
 
 class Settings(BaseSettings):
     DB_HOST: str
@@ -28,7 +30,7 @@ class Settings(BaseSettings):
     CACHE_TTL: timedelta = timedelta(minutes=10)
     PROXY_KEY: str
     USERBOX_KEY: str
-
+    CORS_ORIGINS: str
     @property
     def DATABASE_URL(self):
         return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
