@@ -6,7 +6,7 @@ from uvicorn.logging import AccessFormatter
 from config import settings
 import json
 from fastapi.middleware.cors import CORSMiddleware
-
+import logging
 
 def register_middleware(app: FastAPI):
     logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
@@ -41,6 +41,7 @@ def register_middleware(app: FastAPI):
             return JSONResponse(content=payload, status_code=response.status_code, headers=headers)
         return response
 
+    logging.warning(f"{settings.CORS_ORIGINS}")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
