@@ -14,7 +14,7 @@ function GearIndicator(props) {
             <span
                 {...innerProps}
                 onMouseDown={e => {
-                    e.preventDefault();      // блокируем стандартный фокус
+                    e.preventDefault();
                     openModal();
                 }}
                 className="cursor-pointer text-lg leading-none"
@@ -53,11 +53,12 @@ export default function ParserWB({ token, onLogout, categories, codes }) {
 
     const [region, setRegion] = useState("");
     const [pages, setPages] = useState(1);
-    const [limit, setLimit] = useState(0);            // лимит только для парсинга
-    const [lastCollected, setLastCollected] = useState(null);   // <─ Новое
+    const [limit, setLimit] = useState(0);
+    const [lastCollected, setLastCollected] = useState(null);
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState(null);
     const [error, setError] = useState("");
+    const [jobId, setJobId] = useState("");
 
     const API_BASE =
         import.meta.env.VITE_API_BASE ||
@@ -74,7 +75,7 @@ export default function ParserWB({ token, onLogout, categories, codes }) {
     const c2 = c1?.childs?.[lvl2];
     const c3 = c2?.childs?.[lvl3];
 
-    /* ───────── Дата последнего сбора ───────── */
+
     useEffect(() => {
         const deepest = c2?.childs?.[lvl3] || c2 || c1;
         if (!deepest || !region) {
@@ -106,35 +107,78 @@ export default function ParserWB({ token, onLogout, categories, codes }) {
                 setLastCollected(null);
             }
         })();
-        // ограничиваем список зависимостей — даты регистрации и limit
-        // здесь не участвуют, как и требуется
+
     }, [lvl1, lvl2, lvl3, minSales, maxSales, region, pages]);
 
-    /* ───────── handleSubmit (без изменений в верстке) ───────── */
+
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
         setLoading(true);
+        setItems([]);
+
         try {
+
             const deepest = c2?.childs?.[lvl3] || c2 || c1;
             const { shard, query } = deepest;
-            let url =
-                `${API_BASE}/wb/cat?${query}` +
-                `&shard=${shard}` +
-                `&region_id=${regionStr}` +
-                `&saleItemCount=${minSales}` +
-                `&pages=${pages}` +
-                `&limit=${limit}`;
-            if (maxSales) url += `&maxSaleCount=${maxSales}`;
-            if (regDate) url += `&regDate=${regDate}`;
-            if (maxRegDate) url += `&maxRegDate=${maxRegDate}`;
 
-            const res = await fetch(url, {
+
+            let startUrl = `${API_BASE}/wb/cat/jobs?${query}`;
+            startUrl += `&shard=${shard}`;
+            startUrl += `&region_id=${regionStr}`;
+            startUrl += `&saleItemCount=${minSales}`;
+            startUrl += `&pages=${pages}`;
+            if (limit)      startUrl += `&limit=${limit}`;
+            if (maxSales)   startUrl += `&maxSaleCount=${maxSales}`;
+            if (regDate)    startUrl += `&regDate=${regDate}`;
+            if (maxRegDate) startUrl += `&maxRegDate=${maxRegDate}`;
+
+
+            const startRes = await fetch(startUrl, {
+                method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            setItems(json.data);
+            if (!startRes.ok) {
+                throw new Error(`Ошибка запуска: HTTP ${startRes.status}`);
+            }
+
+
+            const startJson = await startRes.json();
+            const newJobId = startJson.job_id ?? startJson.jobId;
+            if (!newJobId) {
+                console.error("Некорректный ответ сервера:", startJson);
+                throw new Error("Сервер не вернул job_id");
+            }
+            setJobId(newJobId);
+
+
+            while (true) {
+                await new Promise(r => setTimeout(r, 1000));
+                const stRes = await fetch(
+                    `${API_BASE}/wb/cat/jobs/${newJobId}/status`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (!stRes.ok) {
+                    throw new Error(`Ошибка статуса: HTTP ${stRes.status}`);
+                }
+                const { status: s, error: srvError } = await stRes.json();
+                if (s === "finished") break;
+                if (s === "failed") {
+                    throw new Error(`Парсинг не удался: ${srvError}`);
+                }
+            }
+
+
+            const resRes = await fetch(
+                `${API_BASE}/wb/cat/jobs/${newJobId}/result`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!resRes.ok) {
+                throw new Error(`Ошибка получения результата: HTTP ${resRes.status}`);
+            }
+            const data = await resRes.json();
+            setItems(data);
+
         } catch (err) {
             setError(err.message);
         } finally {
@@ -147,35 +191,31 @@ export default function ParserWB({ token, onLogout, categories, codes }) {
         setLoading(true);
 
         try {
-            const deepest = c2?.childs?.[lvl3] || c2 || c1;
-            const { shard, query } = deepest;
+            if (!jobId) {
+                throw new Error("Сначала запустите парсинг, чтобы получить job_id");
+            }
 
-            let url =
-                `${API_BASE}/wb/cat/xlsx?${query}` +
-                `&shard=${shard}` +
-                `&region_id=${regionStr}` +
-                `&saleItemCount=${minSales}` +
-                `&pages=${pages}` +
-                `&limit=${limit}` +
-                `&format=excel`;
-            if (maxSales)   url += `&maxSaleCount=${maxSales}`;
-            if (regDate)    url += `&regDate=${regDate}`;
-            if (maxRegDate) url += `&maxRegDate=${maxRegDate}`;
-
-            const res = await fetch(url, {
-                method: "GET",
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await fetch(
+                `${API_BASE}/wb/cat/jobs/${jobId}/excel`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (res.status === 202) {
+                setError("Excel ещё формируется, попробуйте позже.");
+                return;
+            }
+            if (!res.ok) {
+                throw new Error(`Ошибка Excel: HTTP ${res.status}`);
+            }
 
             const blob = await res.blob();
             const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = blobUrl;
-            a.download = "report.xlsx";
+            a.download = `sellers_${jobId}.xlsx`;
             document.body.appendChild(a);
             a.click();
             a.remove();
+
         } catch (err) {
             setError(err.message);
         } finally {

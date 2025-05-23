@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-import tempfile, os, uuid, asyncio
+import json, tempfile, os, uuid, asyncio
 from typing import List, Optional
 from datetime import datetime
 
@@ -18,6 +18,113 @@ from parser.rusprofile import parse_companies
 from parser.HTTPClient import AsyncHttpClient
 
 router = APIRouter()
+
+def get_redis(request: Request):
+    return request.app.state.redis
+
+@router.post("/cat/jobs", summary="Запустить фоновый парсинг одной категории")
+async def start_cat_parse(
+    background_tasks: BackgroundTasks,
+    params: WBParams = Depends(),
+    region_id: str = Query(..., pattern=r"^\d{2}(?:[,;]\d{2})*$"),
+    limit: Optional[int] = Query(None, ge=0),
+    redis=Depends(get_redis),
+):
+    job_id = uuid.uuid4().hex
+
+    initial = {"status": "pending", "result": None, "error": None}
+    await redis.set(f"job:{job_id}", json.dumps(initial, default=str))
+
+    background_tasks.add_task(
+        run_cat_parse_job,
+        job_id,
+        redis,
+        params,
+        region_id,
+        limit,
+    )
+    return {"job_id": job_id}
+
+async def run_cat_parse_job(
+    job_id: str,
+    redis,
+    params: WBParams,
+    region_id: str,
+    limit: Optional[int],
+):
+
+    raw = await redis.get(f"job:{job_id}")
+    job = json.loads(raw)
+    job["status"] = "in_progress"
+    await redis.set(f"job:{job_id}", json.dumps(job, default=str))
+
+    try:
+
+        data, _log = await collect_data(params, region_id=region_id, limit=limit)
+
+        touch_collection("cat", {**params.dict(exclude_none=True), "region_id": region_id})
+
+        job["status"] = "finished"
+        job["result"] = [item.dict() for item in data]
+        await redis.set(f"job:{job_id}", json.dumps(job, default=str))
+
+    except Exception as e:
+        job["status"] = "failed"
+        job["error"] = str(e)
+        await redis.set(f"job:{job_id}", json.dumps(job, default=str))
+
+@router.get("/cat/jobs/{job_id}/status", summary="Статус задачи парсинга категории")
+async def get_cat_job_status(
+    job_id: str,
+    redis=Depends(get_redis),
+):
+    raw = await redis.get(f"job:{job_id}")
+    if not raw:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = json.loads(raw)
+    return {"job_id": job_id, "status": job["status"], "error": job.get("error")}
+
+@router.get(
+    "/cat/jobs/{job_id}/result",
+    response_model=List[SellerOut],
+    summary="Результат задачи парсинга категории",
+)
+async def get_cat_job_result(
+    job_id: str,
+    redis=Depends(get_redis),
+):
+    raw = await redis.get(f"job:{job_id}")
+    if not raw:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = json.loads(raw)
+    if job["status"] in ("pending", "in_progress"):
+        raise HTTPException(status_code=202, detail="Job still in progress")
+    if job["status"] == "failed":
+        raise HTTPException(status_code=500, detail=f"Job failed: {job.get('error')}")
+    return job["result"]
+
+@router.get("/cat/jobs/{job_id}/excel", summary="Скачать Excel задачи парсинга категории")
+async def download_cat_job_excel(
+    job_id: str,
+    redis=Depends(get_redis),
+):
+    raw = await redis.get(f"job:{job_id}")
+    if not raw:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = json.loads(raw)
+    if job["status"] in ("pending", "in_progress"):
+        raise HTTPException(status_code=202, detail="Job still in progress")
+    if job["status"] == "failed":
+        raise HTTPException(status_code=500, detail=f"Job failed: {job.get('error')}")
+
+    data = job.get("result") or []
+    filename = f"sellers_{job_id}.xlsx"
+    generate_excel(data, filename)
+    return FileResponse(
+        path=filename,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=filename,
+    )
 
 @router.get(
     "/cat",
@@ -120,7 +227,6 @@ async def get_all_categories(
             if not t.done():
                 t.cancel()
 
-    # Логирование аналитики
     if results:
         payload = _clean_params({
             "main_id": main_id,
@@ -207,7 +313,6 @@ def _clean_params(raw: dict) -> dict:
     for k, v in raw.items():
         if k in IGNORED_KEYS or v in (None, ""):
             continue
-        # строка-число → int
         if isinstance(v, str) and v.isdigit():
             out[k] = int(v)
         else:
