@@ -15,8 +15,8 @@ def register_middleware(app: FastAPI):
         h.setFormatter(
             AccessFormatter(
                 fmt=(
-                  "worker-%(process)d | "
-                  "%(levelprefix)s %(asctime)s %(client_addr)s - "
+                  "%(asctime)s | worker-%(process)d | "
+                  "%(levelprefix)s | %(client_addr)s - "
                   "\"%(request_line)s\" %(status_code)s"
                 ),
                 datefmt="%Y-%m-%d %H:%M:%S"
