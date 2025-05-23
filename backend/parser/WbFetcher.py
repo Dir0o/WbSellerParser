@@ -9,13 +9,21 @@ from .WbModels import SellerStats
 class WBProductFetcher:
     _BASE_URL = "https://catalog.wb.ru/catalog/{shard}/v2/catalog?{category}"
 
-    def __init__(self, category: str, shard: str, pages: int, client: AsyncHttpClient) -> None:
+    def __init__(
+        self,
+        category: str,
+        shard: str,
+        pages: int,
+        client: AsyncHttpClient,
+        concurrency: int = 10,  # ограничим число одновременных запросов
+    ) -> None:
         self._category = category
         self._shard = shard
         self._pages = pages
         self._client = client
+        self._sem = asyncio.Semaphore(concurrency)
 
-    def _build_urls(self) -> List[str]:
+    def _build_urls(self) -> list[str]:
         return [
             (
                 f"{self._BASE_URL.format(shard=self._shard, category=self._category)}"
@@ -25,9 +33,24 @@ class WBProductFetcher:
             for page in range(1, self._pages + 1)
         ]
 
-    async def fetch(self) -> List[Dict[str, Any]]:
-        tasks = [self._client.fetch_json(u) for u in self._build_urls()]
-        return await asyncio.gather(*tasks)
+    async def fetch(self) -> list[Dict[str, Any]]:
+        """
+        Фетчим страницы с ограничением по concurrency, чтобы не перегружать API и контролировать потребление памяти.
+        """
+        async def _one(url: str) -> Dict[str, Any]:
+            async with self._sem:
+                return await self._client.fetch_json(url)
+
+        urls = self._build_urls()
+        # Запускаем батчи задач, чтобы не создавать слишком много одновременных корутин
+        tasks = [_one(u) for u in urls]
+        results = []
+        # Выполняем сгруппированные gather, если хочется ещё сильнее контролировать
+        for i in range(0, len(tasks), self._sem._value):  # группируем в блоки size=concurrency
+            batch = tasks[i : i + self._sem._value]
+            results.extend(await asyncio.gather(*batch))
+        return results
+
 
 
 class WBProductParser:
