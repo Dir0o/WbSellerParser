@@ -56,6 +56,7 @@ export default function ParserWBAll({ token, onLogout, categories, codes }) {
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState([]);
     const [error, setError] = useState("");
+    const [jobId, setJobId] = useState(null);
 
     const API_BASE =
         import.meta.env.VITE_API_BASE ||
@@ -108,24 +109,46 @@ export default function ParserWBAll({ token, onLogout, categories, codes }) {
 
         try {
             const main_id = mainCategory.id;
-            let url = `${API_BASE}/wb/all?main_id=${main_id}`;
-            url += `&region_id=${regionStr}`;
-            url += `&saleItemCount=${minSales}`;
-            url += `&pages=${pages}`;
-            url += `&limit=${limit}`;                     // добавляем limit
-            if (maxSales)   url += `&maxSaleCount=${maxSales}`;
-            if (regDate)    url += `&regDate=${regDate}`;
-            if (maxRegDate) url += `&maxRegDate=${maxRegDate}`;
+            // 1) Запускаем фоновую задачу
+            let startUrl = `${API_BASE}/parse?main_id=${main_id}`;
+            startUrl += `&region_id=${regionStr}`;
+            startUrl += `&saleItemCount=${minSales}`;
+            startUrl += `&pages=${pages}`;
+            if (maxSales)    startUrl += `&maxSaleCount=${maxSales}`;
+            if (regDate)     startUrl += `&regDate=${regDate}`;
+            if (maxRegDate)  startUrl += `&maxRegDate=${maxRegDate}`;
+            if (limit)       startUrl += `&limit=${limit}`;
 
-            const res = await fetch(url, {
+            const startRes = await fetch(startUrl, {
+                method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            const data = Array.isArray(json)
-                ? json
-                : json.data ?? json.result ?? [];
+            if (!startRes.ok) throw new Error(`HTTP ${startRes.status}`);
+            const { job_id: newJobId } = await startRes.json();
+            // сохраняем jobId в стейт, чтобы кнопка Excel знала, какую задачу качать
+            setJobId(newJobId);
+            // 2) Ждём, пока статус не станет finished
+            let status;
+            while (true) {
+                await new Promise(r => setTimeout(r, 1000));
+                // используем локальную переменную newJobId, иначе jobId в стейте может быть ещё null
+                const stRes = await fetch(`${API_BASE}/parse/jobs/${newJobId}/status`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!stRes.ok) throw new Error(`Status HTTP ${stRes.status}`);
+                const { status: s } = await stRes.json();
+                if (s === "finished") break;
+                if (s === "failed") throw new Error("Парсинг не удался");
+            }
+
+            // 3) Забираем результат
+            const resRes = await fetch(`${API_BASE}/parse/jobs/${newJobId}/result`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!resRes.ok) throw new Error(`HTTP ${resRes.status}`);
+            const data = await resRes.json();
             setItems(data);
+
         } catch (err) {
             setError(err.message);
         } finally {
@@ -137,26 +160,20 @@ export default function ParserWBAll({ token, onLogout, categories, codes }) {
         setError("");
         setLoading(true);
         try {
-            const main_id = mainCategory.id;
-            let url = `${API_BASE}/wb/all/xlsx?main_id=${main_id}`;
-            url += `&region_id=${regionStr}`;
-            url += `&saleItemCount=${minSales}`;
-            url += `&pages=${pages}`;
-            url += `&limit=${limit}`;                     // добавляем limit для Excel
-            url += `&format=excel`;
-            if (maxSales)   url += `&maxSaleCount=${maxSales}`;
-            if (regDate)    url += `&regDate=${regDate}`;
-            if (maxRegDate) url += `&maxRegDate=${maxRegDate}`;
-
-            const res = await fetch(url, {
+            if (!jobId) throw new Error("Сначала запустите парсинг, чтобы получить job_id");
+            const res = await fetch(`${API_BASE}/parse/jobs/${jobId}/excel`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (res.status === 202) {
+                setError("Excel ещё формируется, попробуйте позже.");
+                return;
+            }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const blob = await res.blob();
             const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = blobUrl;
-            a.download = "report_all.xlsx";
+            a.download = `report_${jobId}.xlsx`;
             document.body.appendChild(a);
             a.click();
             a.remove();
