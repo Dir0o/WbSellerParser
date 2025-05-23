@@ -138,7 +138,7 @@ class AsyncHttpClient:
         """GET JSON с retry/back-off."""
         for att in range(1, self._retries + 1):
             proxy_url = self._pick_proxy()
-            logger.warning(f"JSON {proxy_url} {url}")
+            #logger.warning(f"JSON {proxy_url} {url}")
             try:
                 async with self._session.get(
                     url,
@@ -176,7 +176,7 @@ class AsyncHttpClient:
     async def _request_text(self, url: str, headers: dict | None = None) -> str:
         for att in range(1, self._retries + 1):
             proxy_url = self._pick_proxy()
-            logger.warning(f"TEXT {proxy_url} {url}")
+            #logger.warning(f"TEXT {proxy_url} {url}")
             try:
                 async with self._session.get(
                     url,
@@ -209,7 +209,7 @@ class AsyncHttpClient:
     async def _request_head(self, url: str, allow_redirects: bool) -> aiohttp.ClientResponse:
         for att in range(1, self._retries + 1):
             proxy_url = self._pick_proxy()
-            logger.warning(f"HEAD {proxy_url} {url}")
+            #logger.warning(f"HEAD {proxy_url} {url}")
             try:
                 async with self._session.head(
                     url,
