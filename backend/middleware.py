@@ -14,7 +14,11 @@ def register_middleware(app: FastAPI):
     for h in access_logger.handlers:
         h.setFormatter(
             AccessFormatter(
-                fmt="%(levelprefix)s %(asctime)s %(client_addr)s - \"%(request_line)s\" %(status_code)s",
+                fmt=(
+                  "worker-%(process)d | "
+                  "%(levelprefix)s %(asctime)s %(client_addr)s - "
+                  "\"%(request_line)s\" %(status_code)s"
+                ),
                 datefmt="%Y-%m-%d %H:%M:%S"
             )
         )
