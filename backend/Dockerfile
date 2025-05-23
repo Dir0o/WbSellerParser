@@ -22,4 +22,4 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
 # Start server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers 4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
