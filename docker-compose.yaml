@@ -12,12 +12,10 @@ services:
       - ./backend:/app:ro
       - ./backend/uvicorn_logging.yaml:/app/uvicorn_logging.yaml:ro
     command: >
-      gunicorn main:app
-      -k uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:8000
+      uvicorn main:app
+      --host 0.0.0.0 --port 8000
       --workers 4
-      --access-logfile -
-      --access-logformat '%(h)s %(r)s %(s)s %(L)s pid=%(p)s'
+      --log-config uvicorn_logging.yaml
     ports:
       - "8000:8000"
     depends_on:
