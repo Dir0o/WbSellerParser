@@ -92,10 +92,17 @@ def generate_excel(data: List[SellerOut], filename: str = "sellers.xlsx") -> str
     ws = wb.active
     ws.title = "Sellers"
 
+    normalized: List[SellerOut] = []
+    for item in data:
+        if isinstance(item, dict):
+            normalized.append(SellerOut(**item))
+        else:
+            normalized.append(item)
+    data = normalized
+
     if not data:
         wb.save(filename)
         return filename
-
 
     ws.append(
         [

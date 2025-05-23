@@ -22,7 +22,7 @@ def register_middleware(app: FastAPI):
     async def add_process_time(request: Request, call_next):
         start = time.time()
         response = await call_next(request)
-        if request.url.path.startswith(("/docs", "/openapi", "/redoc", "/auth/token")): # Эндпоинты, которые игнорируются
+        if request.url.path.startswith(("/docs", "/openapi", "/redoc", "/auth/token", "/parse")): # Эндпоинты, которые игнорируются
             return response
         duration_ms = int((time.time() - start) * 1000)
         if response.headers.get("content-type", "").startswith("application/json"):
