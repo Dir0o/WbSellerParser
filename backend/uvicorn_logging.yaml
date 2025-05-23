@@ -1,0 +1,19 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  access:
+    "()": uvicorn.logging.AccessFormatter
+    fmt: '%(process)d | %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
+
+handlers:
+  default:
+    class: logging.StreamHandler
+    formatter: access
+    stream: ext://sys.stdout
+
+loggers:
+  uvicorn.access:
+    handlers: [default]
+    level: INFO
+    propagate: False
