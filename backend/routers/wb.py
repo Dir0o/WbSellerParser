@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
-import tempfile, os, uuid
+import tempfile, os, uuid, asyncio
 from typing import List, Optional
 from datetime import datetime
 
@@ -79,35 +79,49 @@ async def get_all_categories(
     maxSaleCount: Optional[int] = Query(None, ge=0, description="Макс. количество продаж"),
     regDate: Optional[str] = Query(None, description="Мин. дата регистр. YYYY-MM-DD"),
     maxRegDate: Optional[str] = Query(None, description="Макс. дата регистр. YYYY-MM-DD"),
-    limit: Optional[int] = Query(None, ge=0, description="Максимальное число продавцов"),
-    #user=Depends(get_current_user),
+    limit: Optional[int] = Query(None, ge=1, description="Максимальное число продавцов"),
+    concurrency: int = Query(3, ge=1, le=20, description="Одновременных запросов к WB API"),
+    # user=Depends(get_current_user),
 ):
-    if limit == 0:
-        limit = None
-    result = []
-    for cat in _collect_subcategories(main_id):
-        if limit and limit>0:
-            limit=limit-len(result)
+    """
+    Параллельный парсинг всех подкатегорий с контролем limit и concurrency.
+    """
+
+    subcats = list(_collect_subcategories(main_id))
+
+    sem = asyncio.Semaphore(concurrency)
+    results: List[SellerOut] = []
+
+    async def fetch_cat(cat_query: dict) -> List[SellerOut]:
         params = WBParams(
-            cat=cat.get('query'),
-            shard=cat.get('shard'),
-            region_id=region_id,
-            saleItemCount=saleItemCount,
-            maxSaleCount=maxSaleCount,
-            pages=pages,
-            regDate=regDate,
-            maxRegDate=maxRegDate,
+            cat=cat_query['query'], shard=cat_query['shard'],
+            region_id=region_id, saleItemCount=saleItemCount,
+            maxSaleCount=maxSaleCount, pages=pages,
+            regDate=regDate, maxRegDate=maxRegDate,
         )
-        data, flag_limit = await collect_data(
-            params,
-            region_id=region_id,
-            limit=limit
-        )
-        for d in data:
-            result.append(d)
-        if flag_limit or limit and len(result) >= limit:
-            break
-    if result:
+
+        async with sem:
+            data, _ = await collect_data(params, region_id=region_id, limit=limit and max(0, limit - len(results)))
+            return data
+
+    tasks = {asyncio.create_task(fetch_cat(cat)): cat for cat in subcats}
+
+    try:
+        for coro in asyncio.as_completed(tasks):
+            data = await coro
+            for d in data:
+                results.append(d)
+                if limit and len(results) >= limit:
+                    break
+            if limit and len(results) >= limit:
+                break
+    finally:
+        for t in tasks:
+            if not t.done():
+                t.cancel()
+
+    # Логирование аналитики
+    if results:
         payload = _clean_params({
             "main_id": main_id,
             "pages": pages,
@@ -116,7 +130,8 @@ async def get_all_categories(
             "maxSaleCount": maxSaleCount,
         })
         touch_collection("all", payload)
-    return result
+
+    return results
 
 
 @router.get("/all/xlsx")
