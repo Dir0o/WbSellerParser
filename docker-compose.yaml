@@ -9,7 +9,7 @@ services:
       - ./backend/.env
     network_mode: host
     volumes:
-      - ./backend:/app:ro
+      - ./backend:/app
       - ./backend/uvicorn_logging.yaml:/app/uvicorn_logging.yaml:ro
     command: >
       uvicorn main:app
