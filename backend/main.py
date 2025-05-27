@@ -6,7 +6,13 @@ import os
 import redis.asyncio as aioredis
 
 
-app = FastAPI(title="INNParser", version="1.0")
+app = FastAPI(
+    title="INNParser",
+    version="1.0",
+    redoc_url=None,
+    docs_url=None,
+    openapi_url=None
+)
 
 @app.on_event("startup")
 async def on_startup():
