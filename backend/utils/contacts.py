@@ -20,6 +20,8 @@ EMAIL_RE = re.compile(
 DIGITS = re.compile(r"\D+")
 FMT = PhoneNumberFormat.E164
 
+MOBILE_RE = re.compile(r'^\+79\d{9}$')      # мобильные: +7 9XXXXXXXXX
+LANDLINE_RE = re.compile(r'^\+74\d{9}$')
 
 def extract_phones_any(payload, default_region="RU"):
     """
@@ -46,6 +48,17 @@ def extract_phones_any(payload, default_region="RU"):
         if not (phonenumbers.is_possible_number(num_obj)
                 and phonenumbers.is_valid_number(num_obj)):
             continue
+
+        formatted = phonenumbers.format_number(num_obj, FMT)
+        # Пропускаем все стационарные +74…
+        if LANDLINE_RE.match(formatted):
+            continue
+
+        # (Опционально) убеждаемся, что это именно мобильный +79…
+        if not MOBILE_RE.match(formatted):
+            continue
+
+        phones.add(formatted)
 
         phones.add(phonenumbers.format_number(num_obj, FMT))
 
