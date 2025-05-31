@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from config import settings
 from middleware import register_middleware
-from routers import wb, auth, search, userbox, parse_bg
+from routers import wb, auth, search, userbox, parse_bg, parse_data
 import os
 import redis.asyncio as aioredis
 
@@ -33,3 +33,4 @@ app.include_router(wb.router, prefix="/wb", tags=["wb"])
 app.include_router(search.router, prefix="/search", tags=['search'])
 app.include_router(userbox.router, prefix = "/usersbox", tags = ["usersbox"])
 app.include_router(parse_bg.router, prefix = "/parse", tags = ["jobs"])
+app.include_router(parse_data.router, prefix = "/parse-data", tags = ["parse-data"])

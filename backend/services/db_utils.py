@@ -4,6 +4,7 @@ from sqlalchemy.engine import Row
 import logging
 from datetime import datetime, timezone, timedelta
 
+from models.parse_data import ParseData
 from models.seller import Seller as SellerModel
 from models.seller_contact_cache import SellerContactCache as CacheModel
 from database import SessionLocal
@@ -21,6 +22,11 @@ def get_cached(supplier_id: int) -> Optional[CacheModel]:
               .filter(CacheModel.supplier_id == supplier_id)
               .first()
         )
+
+def _save_parse_data(entry: dict) -> None:
+    with SessionLocal() as db:
+        db.add(ParseData(**entry))
+        db.commit()
 
 def get_existing_seller_ids(seller_ids: List[int]) -> List[Row]:
     """Возвращает Row‑объекты (supplier_id, ogrn, ogrnip) для фильтрации по региону."""
@@ -71,28 +77,42 @@ def remove_from_cache(supplier_id: int) -> None:
         ).delete(synchronize_session=False)
         db.commit()
 
-def add_sellers(resp: list):
+def add_sellers(resp: list) -> None:
+    """Bulk-вариант — тот же принцип."""
     db = SessionLocal()
     try:
         for s in resp:
-            db.add(SellerModel(
-                supplier_id=s.seller_id,
-                store_name=s.store_name,
-                inn=s.inn,
-                url=s.url,
-                sale_count=s.saleCount,
-                reg_date=s.reg_date,
-                tax_office=s.tax_office,
-                ogrn=s.ogrn,
-                ogrnip=s.ogrnip,
-            ))
+            if not s.phone:
+                add_to_cache(s)
+                continue
+            remove_from_cache(s.seller_id)
+            db.add(
+                SellerModel(
+                    supplier_id=s.seller_id,
+                    store_name=s.store_name,
+                    inn=s.inn,
+                    url=s.url,
+                    sale_count=s.saleCount,
+                    reg_date=s.reg_date,
+                    tax_office=s.tax_office,
+                    ogrn=s.ogrn if s.ogrn and len(s.ogrn) == 13 else None,
+                    ogrnip=s.ogrnip if s.ogrnip and len(s.ogrnip) == 15 else None,
+                    phone=s.phone or None,
+                    email=s.email or None,
+                    categories=s.categories
+                )
+            )
         db.commit()
-    except Exception as err:
-        log
     finally:
         db.close()
 
+
 def add_seller(s: SellerOut) -> None:
+    if not s.phone:
+        add_to_cache(s)
+        return
+    remove_from_cache(s.seller_id)
+
     with SessionLocal() as db:
         db.merge(
             SellerModel(
@@ -107,6 +127,7 @@ def add_seller(s: SellerOut) -> None:
                 ogrnip=s.ogrnip if s.ogrnip and len(s.ogrnip) == 15 else None,
                 phone=s.phone or None,
                 email=s.email or None,
+                categories=s.categories
             )
         )
         db.commit()

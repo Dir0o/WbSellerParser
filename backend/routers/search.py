@@ -47,6 +47,9 @@ def search_sellers(
     dateFrom: Optional[date] = Query(None),
     dateTo: Optional[date] = Query(None),
     limit: int = Query(10, ge=1, le=50),
+    category: Optional[str] = Query(None),
+    createdFrom: Optional[date] = Query(None),
+    createdTo: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
     query_stmt = db.query(Seller.id, Seller.store_name)
@@ -76,6 +79,12 @@ def search_sellers(
         query_stmt = query_stmt.filter(Seller.reg_date >= dateFrom)
     if dateTo:
         query_stmt = query_stmt.filter(Seller.reg_date <= dateTo)
+    if category:
+        query_stmt = query_stmt.filter(Seller.categories == category)
+    if createdFrom:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) >= createdFrom)
+    if createdTo:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) <= createdTo)
 
     results = query_stmt.limit(limit).all()
     return [SellerSuggestion(id=r.id, store_name=r.store_name) for r in results]
@@ -88,6 +97,9 @@ def search_seller_details(
     salesTo: Optional[int] = Query(None, ge=0),
     dateFrom: Optional[date] = Query(None),
     dateTo: Optional[date] = Query(None),
+    category: Optional[str] = Query(None),
+    createdFrom: Optional[date] = Query(None),
+    createdTo: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
     query_stmt = db.query(Seller)
@@ -108,7 +120,12 @@ def search_seller_details(
         query_stmt = query_stmt.filter(Seller.reg_date >= dateFrom)
     if dateTo:
         query_stmt = query_stmt.filter(Seller.reg_date <= dateTo)
-
+    if category:
+        query_stmt = query_stmt.filter(Seller.categories == category)
+    if createdFrom:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) >= createdFrom)
+    if createdTo:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) <= createdTo)
     sellers = query_stmt.all()
     result_list = []
     for s in sellers:
@@ -144,6 +161,9 @@ async def download_search_excel(
     salesTo: Optional[int] = Query(None, ge=0),
     dateFrom: Optional[date] = Query(None),
     dateTo: Optional[date] = Query(None),
+    category: Optional[str] = Query(None),
+    createdFrom: Optional[date] = Query(None),
+    createdTo: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     # user = Depends(get_current_user),
 ):
@@ -167,7 +187,12 @@ async def download_search_excel(
         query_stmt = query_stmt.filter(Seller.reg_date >= dateFrom)
     if dateTo:
         query_stmt = query_stmt.filter(Seller.reg_date <= dateTo)
-
+    if category:
+        query_stmt = query_stmt.filter(Seller.categories == category)
+    if createdFrom:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) >= createdFrom)
+    if createdTo:
+        query_stmt = query_stmt.filter(func.date(Seller.created_at) <= createdTo)
     sellers = query_stmt.all()
 
     details = []
@@ -202,3 +227,8 @@ async def download_search_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="search_results.xlsx"
     )
+
+@router.get("/distinct-categories", response_model=List[str], tags=["search"])
+def distinct_categories(db: Session = Depends(get_db)):
+    rows = db.query(func.distinct(Seller.categories)).filter(Seller.categories.isnot(None)).all()
+    return [r[0] for r in rows if r[0]]

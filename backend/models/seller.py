@@ -19,3 +19,4 @@ class Seller(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     phone = Column(ARRAY(String), nullable=True)
     email = Column(ARRAY(String), nullable=True)
+    categories = Column(String, nullable=True)

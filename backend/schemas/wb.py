@@ -24,4 +24,4 @@ class SellerOut(BaseModel):
     ogrnip: Optional[str]
     phone: list[str] = []
     email: list[str] = []
-
+    categories: Optional[str] = None

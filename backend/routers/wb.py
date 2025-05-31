@@ -13,6 +13,7 @@ from services.collection_log_utils import get_last_collection, touch_collection
 
 from utils.excel import generate_excel
 from utils.wb_utils import _collect_subcategories
+from utils.db_utils import _save_parse_data
 
 from parser.rusprofile import parse_companies
 from parser.HTTPClient import AsyncHttpClient
@@ -63,6 +64,18 @@ async def run_cat_parse_job(
         data, _log = await collect_data(params, region_id=region_id, limit=limit)
 
         touch_collection("cat", {**params.dict(exclude_none=True), "region_id": region_id})
+        _save_parse_data(
+            {
+                "category": params.cat,
+                "shard": params.shard,
+                "region_id": region_id,
+                "sale_item_count": params.saleItemCount,
+                "max_sale_count": params.maxSaleCount or 0,
+                "reg_date": params.regDate or datetime.utcnow(),
+                "max_reg_date": params.maxRegDate or datetime.utcnow(),
+                "data": [item.dict() for item in data],
+            }
+        )
 
         job["status"] = "finished"
         job["result"] = [item.dict() for item in data]

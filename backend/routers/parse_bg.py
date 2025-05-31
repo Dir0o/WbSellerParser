@@ -10,12 +10,15 @@ from services.wb_service import collect_data
 from services.collection_log_utils import touch_collection
 from utils.wb_utils import _collect_subcategories
 from utils.excel import generate_excel
+from utils.db_utils import _save_parse_data
 
 router = APIRouter()
 
 IGNORED_KEYS = {"limit", "regDate", "maxRegDate"}
 def get_redis(request: Request):
     return request.app.state.redis
+
+
 
 @router.post(
     "/",
@@ -142,6 +145,19 @@ async def run_parse_job(
                     "saleItemCount": saleItemCount,
                     "maxSaleCount": maxSaleCount,
                 },
+            )
+
+            _save_parse_data(
+                {
+                    "category": str(main_id),  # для «all» кладём main_id
+                    "shard": "",
+                    "region_id": region_id,
+                    "sale_item_count": saleItemCount,
+                    "max_sale_count": maxSaleCount or 0,
+                    "reg_date": regDate or datetime.utcnow(),
+                    "max_reg_date": maxRegDate or datetime.utcnow(),
+                    "data": [item.dict() for item in results],
+                }
             )
 
         job["status"] = "finished"
