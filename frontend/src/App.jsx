@@ -10,6 +10,7 @@ import Auth from "./components/Auth.jsx";
 import ParserWB from "./components/ParserWB.jsx";
 import ParserWBAll from "./components/ParserWBAll.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
+import ParseHistoryPage from "./pages/ParseHistoryPage.jsx";
 
 function parseJwt(token) {
     try {
@@ -112,23 +113,26 @@ export default function App() {
 
     return (
         <div className="flex h-screen">
+            {/* ------- боковое меню ------- */}
             <aside className="fixed top-0 left-0 z-50 w-60 bg-white shadow h-screen p-4 flex flex-col justify-between">
                 <div>
-                    {/* Баланс над списком действий */}
                     <div className="mb-4 text-sm text-gray-700">
-                        Баланс: {loadingBalance
+                        Баланс:&nbsp;
+                        {loadingBalance
                             ? `${balance} руб.`
                             : balance !== null
-                                ? `${balance} руб.`
-                                : "Баланс недоступен"}
+                            ? `${balance} руб.`
+                            : "Недоступен"}
                     </div>
-                    {/*<h3 className="font-semibold mb-4"></h3>*/}
+
                     <ul className="space-y-2">
                         <li>
                             <button
                                 onClick={() => setActiveParser("wb")}
                                 className={`w-full text-left p-2 rounded ${
-                                    activeParser === "wb" ? "bg-violet-100" : "hover:bg-gray-100"
+                                    activeParser === "wb"
+                                        ? "bg-violet-100"
+                                        : "hover:bg-gray-100"
                                 }`}
                             >
                                 WB (категории)
@@ -138,7 +142,9 @@ export default function App() {
                             <button
                                 onClick={() => setActiveParser("wbAll")}
                                 className={`w-full text-left p-2 rounded ${
-                                    activeParser === "wbAll" ? "bg-violet-100" : "hover:bg-gray-100"
+                                    activeParser === "wbAll"
+                                        ? "bg-violet-100"
+                                        : "hover:bg-gray-100"
                                 }`}
                             >
                                 WB (каталог)
@@ -148,14 +154,29 @@ export default function App() {
                             <button
                                 onClick={() => setActiveParser("search")}
                                 className={`w-full text-left p-2 rounded ${
-                                    activeParser === "search" ? "bg-violet-100" : "hover:bg-gray-100"
+                                    activeParser === "search"
+                                        ? "bg-violet-100"
+                                        : "hover:bg-gray-100"
                                 }`}
                             >
                                 Поиск по БД
                             </button>
                         </li>
+                        <li>
+                            <button
+                                onClick={() => setActiveParser("history")}
+                                className={`w-full text-left p-2 rounded ${
+                                    activeParser === "history"
+                                        ? "bg-violet-100"
+                                        : "hover:bg-gray-100"
+                                }`}
+                            >
+                                История парсинга
+                            </button>
+                        </li>
                     </ul>
                 </div>
+
                 <button
                     onClick={handleLogout}
                     className="w-full text-left p-2 mt-4 rounded bg-red-100 hover:bg-red-200"
@@ -164,6 +185,7 @@ export default function App() {
                 </button>
             </aside>
 
+            {/* ------- контент ------- */}
             <main className="flex-1 overflow-auto">
                 {activeParser === "wb" && (
                     <ParserWB
@@ -181,8 +203,9 @@ export default function App() {
                         codes={codes}
                     />
                 )}
-                {activeParser === "search" && (
-                    <SearchPage token={token} />
+                {activeParser === "search" && <SearchPage token={token} />}
+                {activeParser === "history" && (
+                    <ParseHistoryPage token={token} />
                 )}
             </main>
         </div>
