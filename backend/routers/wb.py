@@ -13,7 +13,7 @@ from services.collection_log_utils import get_last_collection, touch_collection
 
 from utils.excel import generate_excel
 from utils.wb_utils import _collect_subcategories
-from utils.db_utils import _save_parse_data
+from services.db_utils import _save_parse_data
 
 from parser.rusprofile import parse_companies
 from parser.HTTPClient import AsyncHttpClient

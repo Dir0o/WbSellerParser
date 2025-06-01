@@ -10,7 +10,7 @@ from services.wb_service import collect_data
 from services.collection_log_utils import touch_collection
 from utils.wb_utils import _collect_subcategories
 from utils.excel import generate_excel
-from utils.db_utils import _save_parse_data
+from services.db_utils import _save_parse_data
 
 router = APIRouter()
 
