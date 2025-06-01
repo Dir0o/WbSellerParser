@@ -31,11 +31,20 @@ def generate_excel_search(data: list, filename: str = "search_results.xlsx") -> 
             "Регистратор",
             "Продаж",
             "Дата создание магазина",
-            "Контакты"
+            "Телефон",
+            "Телефон 2",
+            "Телефон 3",
+            "Телефон 4",
+            "Телефон 5",
+            "Телефон 6",
+            "Телефон 7",
+            "Телефон 8",
+            "Телефон 9",
+            "Телефон 10",
+            "Почта"
         ]
     )
-    #print(data)
-    # Заполнение строк
+    MAX_PHONES = 10
     for seller in data:
         d = [
             seller.seller_id,
@@ -49,12 +58,12 @@ def generate_excel_search(data: list, filename: str = "search_results.xlsx") -> 
             str(seller.reg_date).split("+")[0] if seller.reg_date else None,
         ]
 
-        if seller.phone is not None:
-            for phone in seller.phone:
-                d.append(phone)
-        if seller.email is not None:
-            for email in seller.email:
-                d.append(email)
+        phones = seller.phone or []
+        for i in range(MAX_PHONES):
+            d.append(phones[i] if i < len(phones) else None)
+
+        for email in (seller.email or []):
+            d.append(email)
         ws.append(
             d
         )
@@ -71,7 +80,6 @@ def generate_excel_search(data: list, filename: str = "search_results.xlsx") -> 
         for cell in row:
             cell.border = Border(left=thin, right=thin, bottom=thin)
 
-    # Ширины колонок: копируем из оригинала, добавляя новую колонку H для продаж
     ws.column_dimensions["A"].width = 16.67
     ws.column_dimensions["B"].width = 40.67
     ws.column_dimensions["C"].width = 44.67
@@ -81,6 +89,17 @@ def generate_excel_search(data: list, filename: str = "search_results.xlsx") -> 
     ws.column_dimensions["G"].width = 60.67
     ws.column_dimensions["H"].width = 15.67
     ws.column_dimensions["I"].width = 24.67
+    ws.column_dimensions["J"].width = 20.67
+    ws.column_dimensions["K"].width = 20.67
+    ws.column_dimensions["L"].width = 20.67
+    ws.column_dimensions["M"].width = 20.67
+    ws.column_dimensions["N"].width = 20.67
+    ws.column_dimensions["O"].width = 20.67
+    ws.column_dimensions["P"].width = 20.67
+    ws.column_dimensions["Q"].width = 20.67
+    ws.column_dimensions["R"].width = 20.67
+    ws.column_dimensions["S"].width = 20.67
+    ws.column_dimensions["T"].width = 25.67
 
     ws.row_dimensions[1].height = 36.67
 
@@ -115,10 +134,20 @@ def generate_excel(data: List[SellerOut], filename: str = "sellers.xlsx") -> str
             "Регистратор",
             "Продаж",
             "Дата создание магазина",
-            "Контакты"
+            "Телефон",
+            "Телефон 2",
+            "Телефон 3",
+            "Телефон 4",
+            "Телефон 5",
+            "Телефон 6",
+            "Телефон 7",
+            "Телефон 8",
+            "Телефон 9",
+            "Телефон 10",
+            "Почта"
         ]
     )
-
+    MAX_PHONES = 10
     for seller in data:
         d = [
                 seller.seller_id,
@@ -131,9 +160,11 @@ def generate_excel(data: List[SellerOut], filename: str = "sellers.xlsx") -> str
                 seller.saleCount,
                 str(seller.reg_date).split('+')[0] if seller.reg_date else None,
             ]
-        for phone in seller.phone:
-            d.append(phone)
-        for email in seller.email:
+        phones = seller.phone or []
+        for i in range(MAX_PHONES):
+            d.append(phones[i] if i < len(phones) else None)
+
+        for email in (seller.email or []):
             d.append(email)
         ws.append(
             d
@@ -150,15 +181,26 @@ def generate_excel(data: List[SellerOut], filename: str = "sellers.xlsx") -> str
         for cell in row:
             cell.border = Border(left=thin_border, right=thin_border, bottom=thin_border)
 
-    ws.column_dimensions['A'].width = 16 + 0.67
-    ws.column_dimensions['B'].width = 40 + 0.67
-    ws.column_dimensions['C'].width = 44 + 0.67
-    ws.column_dimensions['D'].width = 15 + 0.67
-    ws.column_dimensions['E'].width = 17 + 0.67
-    ws.column_dimensions['F'].width = 19 + 0.67
-    ws.column_dimensions['G'].width = 60 + 0.67
-    ws.column_dimensions['I'].width = 17 + 0.67
-    ws.column_dimensions['H'].width = 24 + 0.67
+    ws.column_dimensions["A"].width = 16.67
+    ws.column_dimensions["B"].width = 40.67
+    ws.column_dimensions["C"].width = 44.67
+    ws.column_dimensions["D"].width = 15.67
+    ws.column_dimensions["E"].width = 17.67
+    ws.column_dimensions["F"].width = 19.67
+    ws.column_dimensions["G"].width = 60.67
+    ws.column_dimensions["H"].width = 15.67
+    ws.column_dimensions["I"].width = 24.67
+    ws.column_dimensions["J"].width = 20.67
+    ws.column_dimensions["K"].width = 20.67
+    ws.column_dimensions["L"].width = 20.67
+    ws.column_dimensions["M"].width = 20.67
+    ws.column_dimensions["N"].width = 20.67
+    ws.column_dimensions["O"].width = 20.67
+    ws.column_dimensions["P"].width = 20.67
+    ws.column_dimensions["Q"].width = 20.67
+    ws.column_dimensions["R"].width = 20.67
+    ws.column_dimensions["S"].width = 20.67
+    ws.column_dimensions["T"].width = 25.67
 
     ws.row_dimensions[1].height = 36 + 0.67
 

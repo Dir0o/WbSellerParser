@@ -60,7 +60,8 @@ def extract_phones_any(payload, default_region="RU"):
 
         phones.add(formatted)
 
-        phones.add(phonenumbers.format_number(num_obj, FMT))
+        if len(phones) >= 10:
+            break
 
     return sorted(phones)
 

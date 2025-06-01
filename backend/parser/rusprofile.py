@@ -96,3 +96,7 @@ async def parse_companies(ids: Iterable[str | int], seller_id: int) -> List[Comp
             elif isinstance(res, Exception):
                 logger.error("Failed parsing rusprofile query: %s", res)
     return results
+
+if __name__ == "__main__":
+    r = asyncio.run(parse_companies(["7714415483&type=ul"], 1))
+    print(r)

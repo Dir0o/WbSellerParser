@@ -113,10 +113,22 @@ class RPCardParser:
                         tax = _text(_css_first(row, ".company-info__text"))
                         break
 
+            director = None
+            if ogrn_text:
+                for row in _FIND_ALL(soup, "div.company-row"):
+                    title = _text(_css_first(row, ".company-info__title"))
+                    if "Руководитель" in title:
+                        link = _css_first(row, "a")
+                        raw = _text(link) if link else _text(_css_first(row, ".company-info__text"))
+                        if raw:
+                            director = raw.split("подробнее", 1)[0].strip()
+                        break
+
             out.append(CompanyInfo(
-                tax_office= tax,
-                ogrn= ogrn_text if ogrn_text else None,
-                ogrnip= ogrnip_text if ogrnip_text else None,
-                inn = inn if inn else None
+                tax_office=tax,
+                director=director,
+                ogrn=ogrn_text or None,
+                ogrnip=ogrnip_text or None,
+                inn=inn or None
             ))
         return out

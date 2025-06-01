@@ -5,4 +5,5 @@ class CompanyInfo(BaseModel):
     ogrn: str | None = None
     ogrnip: str | None = None
     tax_office: str
+    director: str | None = None
     seller_id: int | None = None

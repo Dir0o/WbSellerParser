@@ -20,6 +20,7 @@ class SellerOut(BaseModel):
     saleCount: int
     reg_date: datetime
     tax_office: str
+    director: Optional[str] = None
     ogrn: Optional[str]
     ogrnip: Optional[str]
     phone: list[str] = []

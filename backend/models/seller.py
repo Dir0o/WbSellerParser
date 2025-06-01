@@ -14,6 +14,7 @@ class Seller(Base):
     sale_count = Column(Integer, nullable=False)
     reg_date = Column(DateTime(timezone=True), nullable=False)
     tax_office = Column(String, nullable=False)
+    director = Column(String, nullable=True)
     ogrn = Column(String(13), nullable=True)
     ogrnip = Column(String(15), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

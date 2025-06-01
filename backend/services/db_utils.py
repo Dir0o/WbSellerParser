@@ -51,6 +51,7 @@ def add_to_cache(s: SellerOut) -> None:
                 sale_count=s.saleCount,
                 reg_date=s.reg_date,
                 tax_office=s.tax_office,
+                director=s.director or None,
                 ogrn=s.ogrn if s.ogrn and len(s.ogrn) == 13 else None,
                 ogrnip=s.ogrnip if s.ogrnip and len(s.ogrnip) == 15 else None,
                 last_try_at=_now_utc(),
@@ -78,7 +79,10 @@ def remove_from_cache(supplier_id: int) -> None:
         db.commit()
 
 def add_sellers(resp: list) -> None:
-    """Bulk-вариант — тот же принцип."""
+    """
+    Bulk-вставка списка SellerOut. Если у продавца нет телефонов —
+    отправляем в кэш; иначе — в основную таблицу sellers.
+    """
     db = SessionLocal()
     try:
         for s in resp:
@@ -95,6 +99,7 @@ def add_sellers(resp: list) -> None:
                     sale_count=s.saleCount,
                     reg_date=s.reg_date,
                     tax_office=s.tax_office,
+                    director=s.director or None,          # ← NEW
                     ogrn=s.ogrn if s.ogrn and len(s.ogrn) == 13 else None,
                     ogrnip=s.ogrnip if s.ogrnip and len(s.ogrnip) == 15 else None,
                     phone=s.phone or None,
@@ -123,6 +128,7 @@ def add_seller(s: SellerOut) -> None:
                 sale_count=s.saleCount,
                 reg_date=s.reg_date,
                 tax_office=s.tax_office,
+                director=s.director or None,
                 ogrn=s.ogrn if s.ogrn and len(s.ogrn) == 13 else None,
                 ogrnip=s.ogrnip if s.ogrnip and len(s.ogrnip) == 15 else None,
                 phone=s.phone or None,
