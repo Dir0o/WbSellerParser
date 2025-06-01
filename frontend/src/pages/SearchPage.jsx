@@ -18,19 +18,26 @@ export default function SearchPage({ token }) {
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [details, setDetails] = useState([]);
+
     const [filterRegion, setFilterRegion] = useState("");
     const [salesFrom, setSalesFrom] = useState("");
     const [salesTo, setSalesTo] = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
+    const [category, setCategory] = useState("");
+    const [createdFrom, setCreatedFrom] = useState("");
+    const [createdTo, setCreatedTo] = useState("");
+
     const [showFilters, setShowFilters] = useState(false);
     const [loadingSuggest, setLoadingSuggest] = useState(false);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [loadingSale, setLoadingSale] = useState({});
     const [sortOption, setSortOption] = useState("fromA");
     const [showSort, setShowSort] = useState(false);
+
     const [firstLoad, setFirstLoad] = useState(true);
 
+    const [catOptions, setCatOptions] = useState([]);
 
     const inputRef = useRef(null);
     const containerRef = useRef(null);
@@ -38,6 +45,21 @@ export default function SearchPage({ token }) {
     const API_BASE =
         import.meta.env.VITE_API_BASE ||
         `http://${window.location.hostname}:8000`;
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/search/distinct-categories`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                setCatOptions(json.data ?? json);
+            } catch {
+                setCatOptions([]);
+            }
+        })();
+    }, [API_BASE, token]);
 
     // Отсортированный список регионов от 01 до 99
     const regionOptions = useMemo(
@@ -107,6 +129,9 @@ export default function SearchPage({ token }) {
                     if (salesTo) params.append("salesTo", salesTo);
                     if (dateFrom) params.append("dateFrom", dateFrom);
                     if (dateTo) params.append("dateTo", dateTo);
+                    if (category) params.append("category", category);              // +
+                    if (createdFrom) params.append("createdFrom", createdFrom);      // +
+                    if (createdTo) params.append("createdTo", createdTo);            // +
 
                     const res = await fetch(
                         `${API_BASE}/search?${params.toString()}&limit=10`,
@@ -122,7 +147,18 @@ export default function SearchPage({ token }) {
                     setLoadingSuggest(false);
                 }
             }, 300),
-        [API_BASE, token, filterRegion, salesFrom, salesTo, dateFrom, dateTo]
+        [
+            API_BASE,
+            token,
+            filterRegion,
+            salesFrom,
+            salesTo,
+            dateFrom,
+            dateTo,
+            category,
+            createdFrom,
+            createdTo,
+        ]
     );
 
     useEffect(() => {
@@ -130,25 +166,29 @@ export default function SearchPage({ token }) {
         return () => fetchSuggestions.cancel();
     }, [query, fetchSuggestions]);
 
+    function buildParams() {
+        const p = new URLSearchParams();
+        if (query.trim()) p.append("q", query);
+        if (filterRegion) p.append("region", filterRegion);
+        if (salesFrom) p.append("salesFrom", salesFrom);
+        if (salesTo) p.append("salesTo", salesTo);
+        if (dateFrom) p.append("dateFrom", dateFrom);
+        if (dateTo) p.append("dateTo", dateTo);
+        if (category) p.append("category", category);             // +
+        if (createdFrom) p.append("createdFrom", createdFrom);    // +
+        if (createdTo) p.append("createdTo", createdTo);          // +
+        return p;
+    }
+
     const handleSearch = async () => {
         inputRef.current?.blur();
         setShowSuggestions(false);
         setLoadingDetail(true);
 
         try {
-            const params = new URLSearchParams();
-            if (query.trim()) params.append("q", query);
-            if (filterRegion) params.append("region", filterRegion);
-            if (salesFrom) params.append("salesFrom", salesFrom);
-            if (salesTo) params.append("salesTo", salesTo);
-            if (dateFrom) params.append("dateFrom", dateFrom);
-            if (dateTo) params.append("dateTo", dateTo);
-
             const res = await fetch(
-                `${API_BASE}/search/results?${params.toString()}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
+                `${API_BASE}/search/results?${buildParams().toString()}`,
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             if (!res.ok) throw new Error(res.statusText);
             const json = await res.json();
@@ -162,26 +202,23 @@ export default function SearchPage({ token }) {
     };
 
     const handleDownloadExcel = async () => {
-        const params = new URLSearchParams();
-        if (query.trim()) params.append("q", query);
-        if (filterRegion) params.append("region", filterRegion);
-        if (salesFrom) params.append("salesFrom", salesFrom);
-        if (salesTo) params.append("salesTo", salesTo);
-        if (dateFrom) params.append("dateFrom", dateFrom);
-        if (dateTo) params.append("dateTo", dateTo);
-
-        const res = await fetch(`${API_BASE}/search/xlsx?${params.toString()}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error(res.statusText);
-        const blob = await res.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = "search_results.xlsx";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        try {
+            const res = await fetch(
+                `${API_BASE}/search/xlsx?${buildParams().toString()}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) throw new Error(res.statusText);
+            const blob = await res.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = "search_results.xlsx";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch {
+            /* ignore */
+        }
     };
 
     const handleKeyDown = (e) => {
@@ -191,6 +228,24 @@ export default function SearchPage({ token }) {
         }
     };
 
+    function handleSetDateFrom(val) {
+        if (dateTo && val > dateTo) setDateTo(val);
+        setDateFrom(val);
+    }
+    function handleSetDateTo(val) {
+        if (dateFrom && val < dateFrom) setDateFrom(val);
+        setDateTo(val);
+    }
+    function handleSetCreatedFrom(val) {
+        if (createdTo && val > createdTo) setCreatedTo(val);
+        setCreatedFrom(val);
+    }
+    function handleSetCreatedTo(val) {
+        if (createdFrom && val < createdFrom) setCreatedFrom(val);
+        setCreatedTo(val);
+    }
+
+    /* ---------- выбор подсказки ---------- */
     const handleSelect = async (seller) => {
         setShowSuggestions(false);
         setSuggestions([]);
@@ -270,6 +325,7 @@ export default function SearchPage({ token }) {
 
                 {showFilters && (
                     <div className="mt-2 p-4 bg-white border rounded shadow">
+                        {/* регион */}
                         <div className="mb-2">
                             <label className="block mb-1">Регион</label>
                             <select
@@ -285,6 +341,8 @@ export default function SearchPage({ token }) {
                                 ))}
                             </select>
                         </div>
+
+                        {/* продажи */}
                         <div className="mb-2 flex gap-2">
                             <div className="flex-1">
                                 <label className="block mb-1">Продажи от</label>
@@ -305,26 +363,77 @@ export default function SearchPage({ token }) {
                                 />
                             </div>
                         </div>
+
+                        {/* дата регистрации продавца */}
                         <div className="mb-2 flex gap-2">
                             <div className="flex-1">
-                                <label className="block mb-1">Дата от</label>
+                                <label className="block mb-1">Дата рег. от</label>
                                 <input
                                     type="date"
                                     value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    max={dateTo || undefined}
+                                    onChange={(e) => handleSetDateFrom(e.target.value)}
                                     className="w-full p-1 border rounded"
                                 />
                             </div>
                             <div className="flex-1">
-                                <label className="block mb-1">Дата до</label>
+                                <label className="block mb-1">Дата рег. до</label>
                                 <input
                                     type="date"
                                     value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
+                                    min={dateFrom || undefined}
+                                    onChange={(e) => handleSetDateTo(e.target.value)}
                                     className="w-full p-1 border rounded"
                                 />
                             </div>
                         </div>
+
+                        {/* ▼▼▼ НОВОЕ ▼▼▼ */}
+                        {/* категория */}
+                        <div className="mb-2">
+                            <label className="block mb-1">Категория</label>
+                            <select
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="w-full p-1 border rounded"
+                            >
+                                <option value="">Не важно</option>
+                                {catOptions.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* дата выгрузки */}
+                        <div className="mb-2 flex gap-2">
+                            <div className="flex-1">
+                                <label className="block mb-1">Дата выгрузки от</label>
+                                <input
+                                    type="date"
+                                    value={createdFrom}
+                                    max={createdTo || undefined}
+                                    onChange={(e) =>
+                                        handleSetCreatedFrom(e.target.value)
+                                    }
+                                    className="w-full p-1 border rounded"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="block mb-1">Дата выгрузки до</label>
+                                <input
+                                    type="date"
+                                    value={createdTo}
+                                    min={createdFrom || undefined}
+                                    onChange={(e) =>
+                                        handleSetCreatedTo(e.target.value)
+                                    }
+                                    className="w-full p-1 border rounded"
+                                />
+                            </div>
+                        </div>
+                        {/* ▲▲▲ НОВОЕ ▲▲▲ */}
                     </div>
                 )}
 
